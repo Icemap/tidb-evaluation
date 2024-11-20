@@ -2,3 +2,6 @@
 *.jsonl
 
 .DS_Store
+
+tidb-evaluation.log
+*.log
