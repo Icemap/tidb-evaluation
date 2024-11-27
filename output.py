@@ -1,5 +1,9 @@
 from typing import List
 import csv
+
+from tqdm import tqdm
+
+from classification import classify
 from model import Topic
 
 
@@ -18,66 +22,39 @@ def to_jsonl(topics: List[Topic], file_path: str):
             f.write(topic.model_dump_json() + "\n")
 
 
-def to_csv(topics: List[Topic], file_path: str):
+def to_autoflow_eval_dataset(topics: List[Topic], file_path: str):
     # Define the headers
-    headers = [
-        "id", "title", "fancy_title", "content", "slug", "category_id", "posts_count",
-        "reply_count", "like_count", "views", "has_summary", "has_accepted_answer",
-        "created_at", "last_posted_at", "accepted_answer_id",
-        "accepted_answer_cooked", "accepted_answer_incoming_link_count",
-        "accepted_answer_reads", "accepted_answer_bookmarked",
-        "accepted_answer_readers_count", "accepted_answer_score",
-        "accepted_answer_created_at", "accepted_answer_updated_at"
-    ]
+    headers = ["id", "query", "reference", "topic_type"]
 
     # Open the file and write data
     with open(file_path, "w", newline='', encoding='utf-8') as f:
         writer = csv.writer(f, quoting=csv.QUOTE_ALL)
         writer.writerow(headers)  # Write the header row
 
-        for topic in topics:
+        for topic in tqdm(topics):
             accepted_answer = topic.accepted_answer
             # Write each topic as a row, using safe_value to handle None
+            material = "\\n".join([f"Material: {safe_value(post)}" for post in topic.question_posts])
+            query = f"Title: {safe_value(topic.title)}\\n\\n Content: {material}"
             writer.writerow([
                 safe_value(topic.id),
-                safe_value(topic.title),
-                safe_value(topic.fancy_title),
-                safe_value(topic.question_post.cooked if topic.question_post else None),
-                safe_value(topic.slug),
-                safe_value(topic.category_id),
-                safe_value(topic.posts_count),
-                safe_value(topic.reply_count),
-                safe_value(topic.like_count),
-                safe_value(topic.views),
-                safe_value(topic.has_summary),
-                safe_value(topic.has_accepted_answer),
-                safe_value(topic.created_at),
-                safe_value(topic.last_posted_at),
-                safe_value(accepted_answer.id if accepted_answer else None),
-                safe_value(accepted_answer.cooked if accepted_answer else None),
-                safe_value(accepted_answer.incoming_link_count if accepted_answer else None),
-                safe_value(accepted_answer.reads if accepted_answer else None),
-                safe_value(accepted_answer.bookmarked if accepted_answer else None),
-                safe_value(accepted_answer.readers_count if accepted_answer else None),
-                safe_value(accepted_answer.score if accepted_answer else None),
-                safe_value(accepted_answer.created_at if accepted_answer else None),
-                safe_value(accepted_answer.updated_at if accepted_answer else None)
+                safe_value(query),
+                safe_value(accepted_answer),
+                safe_value(classify(query)),
             ])
 
 
-def to_autoflow_eval_dataset(topics: List[Topic], file_path: str):
-    # Define the headers
-    headers = ["query", "reference"]
+def to_classification_csv(type_object_list: List, file_path: str):
+    headers = ["query", "query_type"]
 
     # Open the file and write data
     with open(file_path, "w", newline='', encoding='utf-8') as f:
         writer = csv.writer(f, quoting=csv.QUOTE_ALL)
         writer.writerow(headers)  # Write the header row
 
-        for topic in topics:
-            accepted_answer = topic.accepted_answer
+        for type_object in type_object_list:
             # Write each topic as a row, using safe_value to handle None
             writer.writerow([
-                f"Title: {safe_value(topic.title)}\\n\\n Content: {safe_value(topic.question_post.cooked if topic.question_post else None)}",
-                safe_value(accepted_answer.cooked if accepted_answer else None),
+                safe_value(type_object["query"]),
+                safe_value(type_object["query_type"]),
             ])

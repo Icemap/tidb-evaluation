@@ -4,8 +4,7 @@ from typing import List, Tuple, Optional
 import httpx
 from retry import retry
 
-from model import Topic, Post
-
+from model import Topic
 
 # Get the topics of AskTug, https://asktug.com/, and the best answer of each topic.
 # The topic logic is as follows:
@@ -39,12 +38,12 @@ def get_topics(
         print(f"Got topics, ids of topics: {', '.join([str(topic.id) for topic in topics_without_answer])}")
 
         for topic in topics_without_answer:
-            question_post, accepted_answer = get_question_and_accept_answer(topic)
-            topic.question_post = question_post
+            question_posts, accepted_answer = get_question_and_accept_answer(topic)
+            topic.question_posts = question_posts
             topic.accepted_answer = accepted_answer
             if topic.accepted_answer:
                 topics.append(topic)
-                print(f"Got accept answer of topic: {topic.id}, post: {topic.accepted_answer.id}")
+                print(f"Got accept answer of topic: {topic.id}")
 
     return topics
 
@@ -76,7 +75,7 @@ def get_topics_by_category(
 
 
 @retry(tries=3, delay=2)
-def get_question_and_accept_answer(topic: Topic) -> (Optional[Post], Optional[Post]):
+def get_question_and_accept_answer(topic: Topic) -> (List[str], Optional[str]):
     print(f"Start to get accept answer, topic id: {topic.id}")
     if not topic.has_accepted_answer:
         return None, None
@@ -86,13 +85,22 @@ def get_question_and_accept_answer(topic: Topic) -> (Optional[Post], Optional[Po
     data = response.json()
     post_stream = data["post_stream"]
     post_stream_posts = post_stream["posts"]
-    question_post = post_stream_posts[0] if post_stream_posts and len(post_stream_posts) > 0 else None
+    question_post = []
 
     for post in post_stream_posts:
         if post["accepted_answer"]:
-            return Post(**question_post), Post(**post)
+            return question_post, get_raw_post(post["id"])
+        else:
+            question_post.append(get_raw_post(post["id"]))
 
     return None, None
+
+
+@retry(tries=3, delay=2)
+def get_raw_post(post_id: int) -> str:
+    r = httpx.get(f"https://asktug.com/posts/{post_id}.json")
+    post = r.json()
+    return post["raw"]
 
 
 if __name__ == "__main__":

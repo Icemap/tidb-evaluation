@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import datetime
 
 
@@ -38,5 +38,5 @@ class Topic(BaseModel):
     created_at: Optional[datetime.datetime] = None
     last_posted_at: Optional[datetime.datetime] = None
 
-    question_post: Optional[Post] = None
-    accepted_answer: Optional[Post] = None
+    question_posts: List[str] = None
+    accepted_answer: Optional[str] = None
