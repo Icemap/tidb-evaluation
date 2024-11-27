@@ -162,3 +162,5 @@ cython_debug/
 
 tidb-evaluation.log
 *.log
+
+checkpoint.json
